@@ -85,6 +85,12 @@ where
   T::decode(&mut payload).await
 }
 
+/// Метод чтения зашифрованных данных из `Arc<RwLock<OwnedReadHalf>>`
+pub async fn read_encrypted_payload_rw(half: &Arc<RwLock<OwnedReadHalf>>, crypto_session: &CryptoSession) -> std::io::Result<Bytes> {
+  let mut half_guard = tokio::time::timeout(Duration::from_secs(6), half.write()).await?;
+  read_encrypted_payload(&mut *half_guard, crypto_session).await
+}
+
 /// Метод чтения зашифрованного пакета из `Arc<RwLock<OwnedReadHalf>>`
 pub async fn read_encrypted_packet_rw<T>(half: &Arc<RwLock<OwnedReadHalf>>, crypto_session: &CryptoSession) -> std::io::Result<T>
 where

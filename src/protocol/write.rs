@@ -72,6 +72,16 @@ where
   write_payload(&mut *half_guard, &payload).await
 }
 
+/// Метод записи зашифрованных данных в `Arc<RwLock<OwnedWriteHalf>>`
+pub async fn write_encrypted_payload_rw(
+  half: &Arc<RwLock<OwnedWriteHalf>>,
+  payload: &[u8],
+  crypto_session: &mut CryptoSession,
+) -> std::io::Result<()> {
+  let mut half_guard = tokio::time::timeout(Duration::from_secs(6), half.write()).await?;
+  write_encrypted_payload(&mut *half_guard, payload, crypto_session).await
+}
+
 /// Метод записи зашифрованного пакета в `Arc<RwLock<OwnedWriteHalf>>`
 pub async fn write_encrypted_packet_rw<T>(
   half: &Arc<RwLock<OwnedWriteHalf>>,
