@@ -7,6 +7,8 @@ readme = "README.md"
 description = "A fast and secure protocol. Built-in client and server implementation."
 repository = "https://github.com/nullclyze/etuf"
 documentation = "https://docs.rs/etuf/latest/"
+keywords = ["fast", "async", "protocol"]
+categories = ["asynchronous", "authentication", "cryptography", "network-programming"]
 
 [dependencies]
 bytes = "1.11.1"
