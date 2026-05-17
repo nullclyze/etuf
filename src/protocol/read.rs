@@ -1,3 +1,4 @@
+use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -8,20 +9,27 @@ use tokio::sync::RwLock;
 
 use crate::protocol::{CryptoSession, Packet};
 
+/// Максимальный размер данных (8мб)
+const MAX_PAYLOAD_SIZE: u32 = 8_388_608;
+
 /// Функция чтения данных
 pub async fn read_payload<R>(r: &mut R) -> std::io::Result<Bytes>
 where
   R: AsyncRead + Unpin + Send,
 {
-  // Фрагментированная длина данных (минимум 0 бит, максимум 4294967295 бит)
+  // Фрагментированная длина данных
   let mut fragmented_length = [0u8; 4];
   r.read_exact(&mut fragmented_length).await?;
 
   // Итоговая длина данных
-  let length = u32::from_be_bytes(fragmented_length) as usize;
+  let length = u32::from_be_bytes(fragmented_length);
+
+  if length > MAX_PAYLOAD_SIZE {
+    return Err(Error::new(ErrorKind::InvalidData, "payload too large"));
+  }
 
   // Данные без учёта длины
-  let mut payload = vec![0u8; length];
+  let mut payload = vec![0u8; length as usize];
   r.read_exact(&mut payload).await?;
 
   Ok(Bytes::from(payload))
@@ -32,15 +40,19 @@ pub async fn read_encrypted_payload<R>(r: &mut R, crypto_session: &CryptoSession
 where
   R: AsyncRead + Unpin + Send,
 {
-  // Фрагментированная длина данных (минимум 0 бит, максимум 4294967295 бит)
+  // Фрагментированная длина данных
   let mut fragmented_length = [0u8; 4];
   r.read_exact(&mut fragmented_length).await?;
 
   // Итоговая длина зашифрованных данных
-  let length = u32::from_be_bytes(fragmented_length) as usize;
+  let length = u32::from_be_bytes(fragmented_length);
+
+  if length > MAX_PAYLOAD_SIZE {
+    return Err(Error::new(ErrorKind::InvalidData, "payload too large"));
+  }
 
   // Зашифрованные данные без учёта длины
-  let mut payload = vec![0u8; length];
+  let mut payload = vec![0u8; length as usize];
   r.read_exact(&mut payload).await?;
 
   // Расшифровка данных
