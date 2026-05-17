@@ -2,8 +2,11 @@
 name = "etuf"
 version = "0.1.0"
 edition = "2024"
-license = "GPL-3.0"
+license = "GPL-3.0-only"
+readme = "README.md"
 description = "A fast and secure protocol. Built-in client and server implementation."
+repository = "https://github.com/nullclyze/etuf"
+documentation = "https://docs.rs/etuf/latest/"
 
 [dependencies]
 bytes = "1.11.1"
