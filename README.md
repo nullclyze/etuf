@@ -18,7 +18,7 @@ All current examples can be found here: [browse](https://github.com/nullclyze/et
 **First, let's include dependency in `Cargo.toml`:**
 ```toml
 [dependencies]
-etuf = { version = "0.1.0", features = ["all"] }
+etuf = { git = "https://github.com/nullclyze/etuf", features = ["all"] }
 ```
 
 **Now let's write the code:**
