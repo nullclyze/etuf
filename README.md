@@ -13,7 +13,15 @@ An efficient and secure protocol for client-server interaction, written in Rust.
 
 All current examples can be found here: [browse](https://github.com/nullclyze/etuf/tree/main/examples)
 
-**Simple ping-pong:**
+## Simple ping-pong
+
+**First, let's include dependency in `Cargo.toml`:**
+```toml
+[dependencies]
+etuf = { version = "0.1.0", features = ["all"] }
+```
+
+**Now let's write the code:**
 ```rust
 use std::time::Duration;
 
