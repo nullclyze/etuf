@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 
 use crate::protocol::{CryptoSession, Packet};
 
-/// Метод записи данных
+/// Функция записи данных
 pub async fn write_payload<W>(w: &mut W, payload: &[u8]) -> std::io::Result<()>
 where
   W: AsyncWrite + Unpin + Send,
@@ -21,7 +21,7 @@ where
   w.flush().await
 }
 
-/// Метод записи зашифрованных данных
+/// Функция записи зашифрованных данных
 pub async fn write_encrypted_payload<W>(w: &mut W, payload: &[u8], crypto_session: &mut CryptoSession) -> std::io::Result<()>
 where
   W: AsyncWrite + Unpin + Send,
@@ -36,7 +36,7 @@ where
   w.flush().await
 }
 
-/// Метод записи пакета
+/// Функция записи пакета
 pub async fn write_packet<W, T>(w: &mut W, packet: &T) -> std::io::Result<()>
 where
   W: AsyncWrite + Unpin + Send,
@@ -46,7 +46,7 @@ where
   write_payload(w, &payload).await
 }
 
-/// Метод записи зашифрованного пакета
+/// Функция записи зашифрованного пакета
 pub async fn write_encrypted_packet<W, T>(w: &mut W, packet: &T, crypto_session: &mut CryptoSession) -> std::io::Result<()>
 where
   W: AsyncWrite + Unpin + Send,
@@ -56,13 +56,13 @@ where
   write_encrypted_payload(w, &payload, crypto_session).await
 }
 
-/// Метод записи данных в `Arc<RwLock<OwnedWriteHalf>>`
+/// Функция записи данных в `Arc<RwLock<OwnedWriteHalf>>`
 pub async fn write_payload_rw(half: &Arc<RwLock<OwnedWriteHalf>>, payload: &[u8]) -> std::io::Result<()> {
   let mut half_guard = tokio::time::timeout(Duration::from_secs(6), half.write()).await?;
   write_payload(&mut *half_guard, payload).await
 }
 
-/// Метод записи пакета в `Arc<RwLock<OwnedWriteHalf>>`
+/// Функция записи пакета в `Arc<RwLock<OwnedWriteHalf>>`
 pub async fn write_packet_rw<T>(half: &Arc<RwLock<OwnedWriteHalf>>, packet: &T) -> std::io::Result<()>
 where
   T: Packet,
@@ -72,26 +72,31 @@ where
   write_payload(&mut *half_guard, &payload).await
 }
 
-/// Метод записи зашифрованных данных в `Arc<RwLock<OwnedWriteHalf>>`
+/// Функция записи зашифрованных данных в `Arc<RwLock<OwnedWriteHalf>>`
 pub async fn write_encrypted_payload_rw(
   half: &Arc<RwLock<OwnedWriteHalf>>,
   payload: &[u8],
-  crypto_session: &mut CryptoSession,
+  crypto_session: &Arc<RwLock<CryptoSession>>,
 ) -> std::io::Result<()> {
   let mut half_guard = tokio::time::timeout(Duration::from_secs(6), half.write()).await?;
-  write_encrypted_payload(&mut *half_guard, payload, crypto_session).await
+  let mut crypto_guard = tokio::time::timeout(Duration::from_secs(6), crypto_session.write()).await?;
+
+  write_encrypted_payload(&mut *half_guard, payload, &mut crypto_guard).await
 }
 
-/// Метод записи зашифрованного пакета в `Arc<RwLock<OwnedWriteHalf>>`
+/// Функция записи зашифрованного пакета в `Arc<RwLock<OwnedWriteHalf>>`
 pub async fn write_encrypted_packet_rw<T>(
   half: &Arc<RwLock<OwnedWriteHalf>>,
   packet: &T,
-  crypto_session: &mut CryptoSession,
+  crypto_session: &Arc<RwLock<CryptoSession>>,
 ) -> std::io::Result<()>
 where
   T: Packet,
 {
   let mut half_guard = tokio::time::timeout(Duration::from_secs(6), half.write()).await?;
+  let mut crypto_guard = tokio::time::timeout(Duration::from_secs(6), crypto_session.write()).await?;
+
   let payload = packet.encode().await;
-  write_encrypted_payload(&mut *half_guard, &payload, crypto_session).await
+
+  write_encrypted_payload(&mut *half_guard, &payload, &mut crypto_guard).await
 }

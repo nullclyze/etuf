@@ -208,10 +208,7 @@ impl Server {
 
   /// Метод обработки команды клиента
   pub async fn process_command(conn: &Connection, mode: ServerMode) -> std::io::Result<()> {
-    let cmd_req: CommandRequest = {
-      let mut crypto_session = conn.crypto_session.write().await;
-      read_encrypted_packet_rw(&conn.read_half, &mut crypto_session).await?
-    };
+    let cmd_req: CommandRequest = read_encrypted_packet_rw(&conn.read_half, &conn.crypto_session).await?;
 
     let mut resp = CommandResponse {
       status: CommandStatus::Failed,
@@ -219,19 +216,17 @@ impl Server {
 
     if cmd_req.command == ClientCommand::Direct && (mode == ServerMode::Basic || mode == ServerMode::Multi) {
       resp.status = CommandStatus::Success;
-      let mut crypto_session = conn.crypto_session.write().await;
-      write_encrypted_packet_rw(&conn.write_half, &resp, &mut crypto_session).await?;
+      write_encrypted_packet_rw(&conn.write_half, &resp, &conn.crypto_session).await?;
     } else if cmd_req.command == ClientCommand::Proxy && (mode == ServerMode::Proxy || mode == ServerMode::Multi) {
       let Some(target_host) = cmd_req.target_host else {
-        let mut crypto_session = conn.crypto_session.write().await;
-        write_encrypted_packet_rw(&conn.write_half, &resp, &mut crypto_session).await?;
+        write_encrypted_packet_rw(&conn.write_half, &resp, &conn.crypto_session).await?;
         return Err(Error::new(ErrorKind::InvalidData, "target host not specified"));
       };
 
       match TcpStream::connect(&target_host).await {
         Ok(target_stream) => {
           resp.status = CommandStatus::Success;
-          write_encrypted_packet_rw(&conn.write_half, &resp, &mut *conn.crypto_session.write().await).await?;
+          write_encrypted_packet_rw(&conn.write_half, &resp, &conn.crypto_session).await?;
           Self::process_proxy_mode(
             conn.read_half.clone(),
             conn.write_half.clone(),
@@ -241,13 +236,13 @@ impl Server {
           .await?;
         }
         Err(e) => {
-          write_encrypted_packet_rw(&conn.write_half, &resp, &mut *conn.crypto_session.write().await).await?;
+          write_encrypted_packet_rw(&conn.write_half, &resp, &conn.crypto_session).await?;
           return Err(e);
         }
       }
     } else {
       resp.status = CommandStatus::Unsupported;
-      write_encrypted_packet_rw(&conn.write_half, &resp, &mut *conn.crypto_session.write().await).await?;
+      write_encrypted_packet_rw(&conn.write_half, &resp, &conn.crypto_session).await?;
       return Err(Error::new(ErrorKind::Unsupported, "unsupported command"));
     }
 

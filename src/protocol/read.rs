@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 
 use crate::protocol::{CryptoSession, Packet};
 
-/// Метод чтения данных
+/// Функция чтения данных
 pub async fn read_payload<R>(r: &mut R) -> std::io::Result<Bytes>
 where
   R: AsyncRead + Unpin + Send,
@@ -27,7 +27,7 @@ where
   Ok(Bytes::from(payload))
 }
 
-/// Метод чтения зашифрованных данных
+/// Функция чтения зашифрованных данных
 pub async fn read_encrypted_payload<R>(r: &mut R, crypto_session: &CryptoSession) -> std::io::Result<Bytes>
 where
   R: AsyncRead + Unpin + Send,
@@ -49,7 +49,7 @@ where
   Ok(Bytes::from(decrypted))
 }
 
-/// Метод чтения пакета
+/// Функция чтения пакета
 pub async fn read_packet<R, T>(r: &mut R) -> std::io::Result<T>
 where
   R: AsyncRead + Unpin + Send,
@@ -59,7 +59,7 @@ where
   T::decode(&mut payload).await
 }
 
-/// Метод чтения зашифрованного пакета
+/// Функция чтения зашифрованного пакета
 pub async fn read_encrypted_packet<R, T>(r: &mut R, crypto_session: &CryptoSession) -> std::io::Result<T>
 where
   R: AsyncRead + Unpin + Send,
@@ -69,13 +69,13 @@ where
   T::decode(&mut payload).await
 }
 
-/// Метод чтения данных из `Arc<RwLock<OwnedReadHalf>>`
+/// Функция чтения данных из `Arc<RwLock<OwnedReadHalf>>`
 pub async fn read_payload_rw(half: &Arc<RwLock<OwnedReadHalf>>) -> std::io::Result<Bytes> {
   let mut half_guard = tokio::time::timeout(Duration::from_secs(6), half.write()).await?;
   read_payload(&mut *half_guard).await
 }
 
-/// Метод чтения пакета из `Arc<RwLock<OwnedReadHalf>>`
+/// Функция чтения пакета из `Arc<RwLock<OwnedReadHalf>>`
 pub async fn read_packet_rw<T>(half: &Arc<RwLock<OwnedReadHalf>>) -> std::io::Result<T>
 where
   T: Packet,
@@ -85,18 +85,29 @@ where
   T::decode(&mut payload).await
 }
 
-/// Метод чтения зашифрованных данных из `Arc<RwLock<OwnedReadHalf>>`
-pub async fn read_encrypted_payload_rw(half: &Arc<RwLock<OwnedReadHalf>>, crypto_session: &CryptoSession) -> std::io::Result<Bytes> {
+/// Функция чтения зашифрованных данных из `Arc<RwLock<OwnedReadHalf>>`
+pub async fn read_encrypted_payload_rw(
+  half: &Arc<RwLock<OwnedReadHalf>>,
+  crypto_session: &Arc<RwLock<CryptoSession>>,
+) -> std::io::Result<Bytes> {
   let mut half_guard = tokio::time::timeout(Duration::from_secs(6), half.write()).await?;
-  read_encrypted_payload(&mut *half_guard, crypto_session).await
+  let crypto_guard = tokio::time::timeout(Duration::from_secs(6), crypto_session.read()).await?;
+
+  read_encrypted_payload(&mut *half_guard, &crypto_guard).await
 }
 
-/// Метод чтения зашифрованного пакета из `Arc<RwLock<OwnedReadHalf>>`
-pub async fn read_encrypted_packet_rw<T>(half: &Arc<RwLock<OwnedReadHalf>>, crypto_session: &CryptoSession) -> std::io::Result<T>
+/// Функция чтения зашифрованного пакета из `Arc<RwLock<OwnedReadHalf>>`
+pub async fn read_encrypted_packet_rw<T>(
+  half: &Arc<RwLock<OwnedReadHalf>>,
+  crypto_session: &Arc<RwLock<CryptoSession>>,
+) -> std::io::Result<T>
 where
   T: Packet,
 {
   let mut half_guard = tokio::time::timeout(Duration::from_secs(6), half.write()).await?;
-  let mut payload = read_encrypted_payload(&mut *half_guard, crypto_session).await?;
+  let crypto_guard = tokio::time::timeout(Duration::from_secs(6), crypto_session.read()).await?;
+
+  let mut payload = read_encrypted_payload(&mut *half_guard, &crypto_guard).await?;
+
   T::decode(&mut payload).await
 }
